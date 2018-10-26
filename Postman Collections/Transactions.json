@@ -1,0 +1,598 @@
+{
+  "info": {
+    "_postman_id": "69053a3a-bc6e-0c14-4ec2-9264319c993a",
+    "name": "Transactions",
+    "description": "# Intro\n\nThis document contains information for making API requests to Clip's system as part of a EMV or Swipe card transaction process.\n\nTo better understand the different scenarios a transaction can have and what order API calls are made, read [Transaction Flow Scenarios](https://gist.github.com/jacobmoncur/c9b012f5836aa02eca4088b5fe2434d2)\n\n# Environments\nAll requests are made to the same host in our transaction flow. Here are the hosts for our different environments:\n\nDevelopment: `https://apinewdev.payclip.com`\n\nStaging: `https://stageapi.payclip.com`\n\nProduction: `https://api.payclip.com`\n\n\n### Card processing in the development environment\nIn the development environment card processing is simulated, no cards will actually be processed or charged.\n\n### Test decryption in the development environment\nOur system handles data encypted using standard DUKPT 3DES methods. All test devices that would like to have their data processed and decrypted in our development environment can do so by:\n1. Setting up the first three characters of the KSN to be `888` and\n2. The BDK for encryption be `0123456789ABCDEFFEDCBA9876543210`\n\n# Request headers\nEach request in the transaction flow requires the following HTTP headers:\n```\nAccept : application/vnd.com.payclip.v1+json\nAuthorization: <access_token>\nUser-Agent : <app_name>/<app_version> (<device_name>; <os_name> <os_version>)\nid-mdc : <tracking_code>\n```\n### Access Token\nThe access token is received by authenticating with the clip system. Here is an example of an access token that can be used in the development environment:\n `zVKhhFhidu3pnojPIyiCshyApwL4S1cmjsARoTxNgfy`\n\n### Tracking Id\nThe `id-mdc` header value, or tracking id, is a 20 character code generated on the client that starts with a `1` and is followed by 19 random alpha numeric characters. This value should reset at the beginning of each transaction so that each transaction flow has a new tracking id.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+  },
+  "item": [
+    {
+      "_postman_id": "c8dde018-5188-7128-2624-390faa520e2b",
+      "name": "Authentication",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "ee07c510-60ad-4263-ad7e-b8caec82a21c",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"response should be okay to process\", function () { ",
+              "    pm.response.to.not.be.error; ",
+              "    pm.response.to.have.jsonBody(\"\"); ",
+              "    pm.response.to.not.have.jsonBody(\"error\"); ",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "    pm.expect(pm.response.text()).to.include(\"access_token\");",
+              "});",
+              "",
+              "var responseData = JSON.parse(responseBody);",
+              "pm.environment.set(\"access_token\", responseData.access_token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/vnd.com.payclip.v1+json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"{{email}}\",\"password\":\"{{password}}\",\"type\":\"{{type}}\",\"source\":\"{{source}}\"}"
+        },
+        "url": "{{apiURL}}/api/login",
+        "description": "Gets access token\n\nThe access token is received by authenticating with the clip system. Here is an example of an access token that can be used in the development environment: zVKhhFhidu3pnojPIyiCshyApwL4S1cmjsARoTxNgfy"
+      },
+      "response": []
+    },
+    {
+      "_postman_id": "4bad853b-6699-03dc-5744-42525f1a6c18",
+      "name": "Check Limit",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "1508d491-cf69-4c0b-ad65-f44adcbade95",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"response should be okay to process\", function () { ",
+              "    pm.response.to.not.be.error; ",
+              "    pm.response.to.have.jsonBody(\"\"); ",
+              "    pm.response.to.not.have.jsonBody(\"error\"); ",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "    pm.expect(pm.response.text()).to.include(\"id\");",
+              "});",
+              "",
+              "var responseData = JSON.parse(responseBody);",
+              "pm.environment.set(\"transaction_id\", responseData.id);",
+              "pm.environment.set(\"payment_status\", responseData.status);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/vnd.com.payclip.v1+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{  \n   \"amount\":\"{{$randomInt}}\",\n   \"client\":{  \n      \"application\":{  \n         \"build_number\":\"{{build_number}}\",\n         \"bundle_id\":\"com.payclip.clip.dev\",\n         \"id\":\"com.payclip.clip.dev\",\n         \"invocation\":\"App\",\n         \"version\":\"{{version}}\"\n      },\n      \"device\":{  \n         \"device_id\":\"{{device_id}}\",\n         \"model_number\":\"iPhone 7\",\n         \"os\":\"iOS\",\n         \"vendor_id\":\"{{vendor_id}}\",\n         \"version\":\"6.0.1\"\n      }\n   },\n   \"geo\":{  \n      \"latitude\":\"19.8987579836191\",\n      \"longitude\":\"-99.3363219629573\"\n   },\n   \"payment_info\":{  \n      \"capability\":\"NONE\",\n      \"sub_type\":\"EMV_SIGNATURE\",\n      \"type\":\"CARD\"\n   },\n   \"timezone\":\"America/Mexico_City\",\n   \"merchant_id\":\"451df71e-f0ca-431b-bc4c-c83cbb80bf3a\",\n   \"mdc\":\"\",\n   \"merchant_token\":\"2e6cce06-1a82-4ebc-815a-142aa72cdbe6\",\n   \"user_id\":\"17024663-04ef-4290-8e70-f2ee328e80bd\",\n   \"api_user_id\":\"a3e32af6-bf6d-4efc-8420-793530944c2e\",\n   \"api_key\":null\n}"
+        },
+        "url": "{{apiURL}}/api/limit",
+        "description": "## Check Limit\n\nThis request ensures that the merchant is not going to exceed any Clip defined limits before attempting to process the transaction.\n\n### Endpoint\n```\nPOST /api/limit\n```\n### Request\n```\n{\n\t\"amount\":\"<transaction_decimal_amount>\",     // Example:  \"543.99\"\n\t\"tip\":\"<tip_decimal_amount>\",                // Example:  \"18.75\"\n\t\"payment_info\": {\n\t\t\"type\":\"CARD\",\n\t\t\"sub_type\":\"EMV_PIN or EMV_SIGNATURE or SWIPED\",\n\t\t\"capability\":\"ICC or SWIPE\"\n\t},\n\t\"geo\": { // OPTIONAL\n\t\t\"latitude\":\"<latitude>\",\n\t\t\"longitude\":\"<longitude>\"\n\t},\n\t\"client\": {\n\t\t\"application\": {\n\t\t\t\"version\":\"<app_version>\",\n\t\t\t\"build_number\":\"<app_build>\"\n\t\t},\n\t\t\"device\": {\n\t\t\t\"device_id\":\"<unique_id or serial_number>\",\n\t\t\t\"os\":\"<os_name>\",\n\t\t\t\"version\":\"<os_version>\"\n\t\t},\n\t\t\"hardware\":{\n\t\t\t\"uid\": \"<unique_id or serial_number>\"\n\t\t\t\"emv_ksn\":\"<emv_ksn>\",\n\t\t\t\"track_ksn\":\"<track_ksn>\",\n\t\t\t\"pin_ksn\":\"<pin_ksn>\",\n\t\t\t\"firmware\":\"<firmware_version>\",\n\t\t\t\"version\":\"<hardware_version>\",\n\t\t\t\"bootloader\":\"<bootloader_version>\",\n\t\t\t\"capabilities\":{\n\t\t\t\t\"manufacturer\":\"<manufacturer_name>\",\n\t\t\t\t\"pin\": true or false\n\t\t\t},\n\t\t}\n    }\n}\n```\n\n### Response:\n```\n{ \n\t\"id\": \"<transaction_id>\", \n\t\"status\": <limit_status>\n}\n```\n\nThe Limit status value is an integer. A value of `0` means the limit check has passed. A value of `-1` or anything else means the limit check has failed."
+      },
+      "response": []
+    },
+    {
+      "_postman_id": "7e8e278d-30f7-171e-3de9-8d9585efebfa",
+      "name": "Payment Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "7d750a41-c4c7-4d3b-b408-71f024a96e2c",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"response should be okay to process\", function () { ",
+              "    pm.response.to.not.be.error; ",
+              "    pm.response.to.have.jsonBody(\"\"); ",
+              "    pm.response.to.not.have.jsonBody(\"error\"); ",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "    pm.expect(pm.response.text()).to.include(\"status\");",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "",
+              "pm.test(`Status is ${jsonData.status}, and should be 0`, function () {",
+              "    pm.expect(jsonData.status).to.eql(0);",
+              "});",
+              "",
+              "var responseData = JSON.parse(responseBody);",
+              "pm.environment.set(\"payment_id\", responseData.id);",
+              "pm.environment.set(\"payment_status\", responseData.status);",
+              "// console.log(responseData.status);",
+              "// console.log(pm.environment.get(\"status\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/vnd.com.payclip.v1+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{  \n   \"amount\":\"{{$randomInt}}\",\n   \"credit_card\":{  \n      \"cvv\":\"\",\n      \"card_no\":\"\",\n      \"emv_tlv\":\"9F1A0204849C01009A031701049F2701809F26089D02F33750DAF62B9F1C0831313232333334349F02060000000001235F24031912315F20135445535420434152442F454D562042494E2D329B026800950580000080004F07A0000000041010C408222300FFFFFF5499C00A05040929152697E00070C2820190EB6F64A326CA771A5EFA87FAC5F4A8D566A58106A55D4FC0EF7F3409020B9C856B12FF7898FBF8B4DF5A4C52D66C1ED552F8F6E1753EEA67FDB6010246DAC56596AB27F9C01D1F99BA1A01950F2F16964B6C70246FCA61779AE12FC6851493FD1BC141D75F12CCA0E3C551FE68BC09FF687D35BE81528E5B2F781B757B377AAADAE2724E06BCFD97E600F1A71127FC75728E80231EA6FF21622596FAFD0A3B17713F5C0E274813E35B69A04246E3AE57CC63FA88587211A67E19677D2E253292FB8C51C809E70BE638619E02911E37B70CED6A1F783E9B6310CCDAAE59CFA92F91326866808E713229B68294AE667D67BC0975A3407951A5EDC65324CAB0CF107DD084C4BB919D675621C26B80D92242DDB393A3A8081EA72107453433971DC59944C03C35BEDBCBEA717055C9B6C9D480698E6D232D2AB41985183E53639E5BC500382E88B23DC7036096450FB1F0AFE67E22801421EFF40CB1CD3F01209B3C65E683C527EAFA883C2285460BE442168E21C41F44F0002F9B675A38CA27C94660B11E63A68F9BEB004A907AD3990BEFC70A05030929152697E00069C818045015ACDAD8F1712AF83AE179BC7B38A54B15DD10A94949\",\n      \"encTrack\":\"\",\n      \"exp_date\":\"\",\n      \"format_id\":\"\",\n      \"ksn\":\"\",\n      \"servicecode\":\"\",\n      \"t1_len\":\"\",\n      \"t2_len\":\"\",\n      \"t3_len\":\"\",\n      \"track1\":\"\",\n      \"track2\":\"\",\n      \"track3\":\"\",\n      \"zipcode\":\"\"\n   },\n   \"latitude\":\"40.3612488\",\n   \"longitude\":\"-111.756389\",\n   \"payment_info\":{  \n      \"capability\":\"ICC\",\n      \"sub_type\":\"EMV_SIGNATURE\",\n      \"type\":\"CARD\"\n   },\n   \"transaction_id\":\"{{transaction_id}}\"\n}"
+        },
+        "url": "{{apiURL}}/api/payment",
+        "description": "## Charge Payment\n\nThe payment request begins the actual processing of the payment. After this request is made the client should continue polling for the payment status.\n\n### Endpoint\n```\nPOST /api/payment\n```\n### Request\n```\n{\n\t\"transaction_id\": \"<transaction_id>\",\n\t\"amount\": \"<transaction_decimal_amount>\",      // Example:  \"60.13\"\n\t\"tip\": \"<tip_decimal_amount>\",                 // Example:  \"1.00\"\n\t\"term\": \"03\",                                  // OPTIONAL Installment term\n\t\"latitude\": \"<latitude>\",\n\t\"longitude\": \"<longitude>\",\n\t\"payment_info\": {\n   \t\t\"type\": \"CARD\",\n\t\t\"sub_type\": \"EMV_PIN or EMV_SIGNATURE or SWIPED\",\n\t\t\"capability\": \"ICC or SWIPE\"\n\t},\n\t\"hardware_capabilities\":{\n\t\t\"manufacturer\": \"<manufacturer_name>\",\n\t\t\"pin\": true or false\n\t},\n\t\"credit_card\":{\n\t\t// ONLY FOR EMV TRANSACTIONS\n\t\t\"emv_tlv\": \"<EMV TLV with ARQC>\",\n\n\t\t// ONLY FOR SWIPE TRANSACTIONS\n\t\t\"card_no\": \"485246XXXXXX4580\",\n      \t\t\"customer\": {  // OPTIONAL\n         \t\t\"first_name\":\"<first_name>\",\n         \t\t\"last_name\":\"<last_name>\"\n      \t\t},\n      \t\t\"exp_date\": \"<formatted YYMM>\",    // Example for December 2018 \"1812\"\n\t\t\"ksn\":\"<track_ksn>\",\n      \t\t\"servicecode\":\"<service_code>\",\n\t\t\"track1\":\"<encrypted_track_1>\",\n\t\t\"t1_len\":\"<track_1_length>\",\n      \t\t\"track2\":\"<encrypted_track_2>\",\n      \t\t\"t2_len\":\"<track_2_length>\"\n\t}\n}\n```\n### Response\n\n```\n{ \n\t\"id\": \"<payment_id>\",\n\t\"status\": <payment_status>\n}\n```\n\nThe `payment_status` can have several integer values:\n\n| Payment Status | Meaning |\n|--|--|\n| 0 | Polling |\n| 5 | Online Status Ready |\n| 1 | Payment Approved |\n| -3 | Declined |\n| 3 | Cancelled |\n| -4 | Invalid Data |\n| -5 | Other Error |\n| All other numbers | Error |"
+      },
+      "response": []
+    },
+    {
+      "_postman_id": "d40a27b8-f841-8974-3dd8-2363e7868793",
+      "name": "Assert Transaction",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "36fc017e-3697-4695-b3fa-132e9899da0c",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"response should be okay to process\", function () { ",
+              "    pm.response.to.not.be.error; ",
+              "    pm.response.to.have.jsonBody(\"\"); ",
+              "    pm.response.to.not.have.jsonBody(\"error\"); ",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "    pm.expect(pm.response.text()).to.include(\"status\");",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "",
+              "pm.test(`Status is ${jsonData.status}, and should be 5`, function () {",
+              "    pm.expect(jsonData.status).to.eql(5);",
+              "});",
+              "",
+              "pm.environment.set(\"payment_status\", jsonData.status);",
+              "",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/vnd.com.payclip.v1+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{access_token}}"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"{{email}}\",\"password\":\"{{password}}\"}"
+        },
+        "url": "{{apiURL}}/api/payment/status/{{payment_id}}",
+        "description": "## Request Payment Status\nThe client makes this request to know the status of the payment. Typically this request is made in a polling fashion.\n\n### Endpoint\n```\nGET /api/payment/status/<payment_id>\n```\n\n### Response\n```\n{ \n\t\"id\": \"<payment_id>\",\n\t\"status\": <payment_status>\n}\n```\nThe payment status can have several integer values. See payment status table above."
+      },
+      "response": []
+    },
+    {
+      "_postman_id": "9647650c-fc4c-ea8c-9629-e9da332558ae",
+      "name": "Send EMV Full Result",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "94494c2b-72b9-4d1e-8961-9d1aa6643a92",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"response should be okay to process\", function () { ",
+              "    pm.response.to.not.be.error; ",
+              "    pm.response.to.have.jsonBody(\"\"); ",
+              "    pm.response.to.not.have.jsonBody(\"error\"); ",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "});",
+              "",
+              "pm.environment.set(\"counter\", 0);",
+              "setTimeout(postman.setNextRequest(\"Final Transaction Status\"), 2000);",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "vnd.com.payclip.v1"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"emv_full_result_tlv\":\"9F1A0204849C01009A031612019F2701409F2608B911CA72B370A8D59F1C0831313232333334349F120C494E425552534120564953419F02060000005345645F24032005315F20152020202020202020202020202020202020202020209B0268009505808800E0004F07A0000000032010C30A05041029151188E00039C408465828FFFFFF4694C58201982A6B84926E846BBD173E63182511A749E3FD8D271014A4991915CAE457762BDDD192AAD3A7C1AA3A699279FC7AA4B05E5DBA714A965E5BBD24F7EC46BD35B879E6F7F253AA120A4A5F827F543B1D69DE34F11E4AF41F90BCFD9BF34310DCD24AC1E4B384C10B1E8354485F336FD6C9ECED422B83420CA129D9A73EFF2775DD5AF964918A2F43694BB489851DA2915423E98FFE8C56ECD3116FCCA8C9948363283D8B6C6F5F8221642C46B5FA911C5D1066A32E9EE007DC43943C89008253CA4CC00F263A0C7329BC74BBE4A4AABB3BA56EF8D4D0DE6E19239E6A5818535C69BF4C81B48A096F0691040C8A36C658DA69C2CAB0214CE25CC71F090135B6DF56AB914738845B70E74F7E72E81DFB9097A85B37FE2E35CECEF26D3AB17F64ED49DF0E973B59783CF29A3D5BB80C65BAD7F2B7B2B28946923836BD69B3DEB6851AA15B989C86AB423D32A3FF31CC843150B31FBFBDB3A7F5894B670695FFCA737D2C1DC12A51358769719A310363974859BAFF4B91C304C70E8BAB3299551821F30A88E3FCCBB9E46F75748830367DE967B0B12770664165348AC70A05031029151188E00056C818DB496A225D931200173AEB4C962E38C254C56FECB6DB6EB0\"}"
+        },
+        "url": "{{apiURL}}/api/payment/emv/fullResult/{{payment_id}}",
+        "description": "## Post Full EMV Batch Data\nThe client makes this request to send up the result of processing the ARPC typically called the *batch data*. After this request is made the client should continue polling for the payment status.\n\n### Endpoint\n```\nPOST /api/payment/emv/fullResult/<payment_id>\n```\n### Request\n```\n{ \n\t\"emv_full_result_tlv\": \"<result_of_processing_ARPC>\" \n}\n```"
+      },
+      "response": []
+    },
+    {
+      "_postman_id": "82c0a21b-0904-cadb-684a-02328fe3b536",
+      "name": "Final Transaction Status",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "ef1df066-485b-47d7-8448-d86e66a453ea",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"response should be okay to process\", function () { ",
+              "    pm.response.to.not.be.error; ",
+              "    pm.response.to.have.jsonBody(\"\"); ",
+              "    pm.response.to.not.have.jsonBody(\"error\"); ",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "    pm.expect(pm.response.text()).to.include(\"status\");",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "if (jsonData.status !== 1 && pm.environment.get(\"counter\") !== 6) {",
+              "     pm.environment.set(\"counter\", ((pm.environment.get(\"counter\") + 1)));",
+              "    postman.setNextRequest(\"Final Transaction Status\");",
+              "   ",
+              "} else {",
+              "        pm.test(`Status is ${jsonData.status}, and should be 1`, function () {",
+              "        pm.expect(jsonData.status).to.eql(1);",
+              "    });",
+              "}",
+              "",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/vnd.com.payclip.v1+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"{{email}}\",\"password\":\"{{password}}\"}"
+        },
+        "url": "{{apiURL}}/api/payment/status/{{payment_id}}",
+        "description": "## Request Payment Status\nThe client makes this request to know the status of the payment. Typically this request is made in a polling fashion.\n\n### Endpoint\n```\nGET /api/payment/status/<payment_id>\n```\n\n### Response\n```\n{ \n\t\"id\": \"<payment_id>\",\n\t\"status\": <payment_status>\n}\n```\nThe payment status can have several integer values. See payment status table above."
+      },
+      "response": []
+    },
+    {
+      "_postman_id": "9097885e-63d2-5b08-6ee7-9c675efbdc35",
+      "name": "Signature Page",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"response should be okay to process\", function () { ",
+              "    pm.response.to.not.be.error; ",
+              "    pm.response.to.have.jsonBody(\"\"); ",
+              "    pm.response.to.not.have.jsonBody(\"error\"); ",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "});"
+            ],
+            "id": "70922fb7-a94b-455d-ba4e-45ca88e5cc78",
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/vnd.com.payclip.v1+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{access_token}}"
+          }
+        ],
+        "body": {},
+        "url": "{{apiURL}}/api/signature/signaturePage/{{payment_id}}",
+        "description": "## Approved Payment Received\nThe client makes this request to recognize that an approved transaction has been recognized and received. Though the endpoint contains references to the `signaturePage` this request applies to all transactions regardless of if it needed to be validated with signature or with PIN.\n\n### Endpoint\n```\nPOST /api/signature/signaturePage/<payment_id>\n```\nThis request does not return a consumable response."
+      },
+      "response": []
+    },
+    {
+      "_postman_id": "8bfd06d9-a846-6173-c7bb-a315a414a567",
+      "name": "Signature",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "1b72d51a-81ad-4575-8438-a4a85bbfab23",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"response should be okay to process\", function () { ",
+              "    pm.response.to.not.be.error; ",
+              "    pm.response.to.have.jsonBody(\"\"); ",
+              "    pm.response.to.not.have.jsonBody(\"error\"); ",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "    pm.expect(pm.response.text()).to.include(\"status\");",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "",
+              "pm.test(`Status is ${jsonData.status}, and should be 1`, function () {",
+              "    pm.expect(jsonData.status).to.eql(1);",
+              "});",
+              "",
+              "pm.environment.set(\"payment_status\", jsonData.status);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/vnd.com.payclip.v1"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{access_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "disabled": true
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "description": "signature",
+              "key": "image",
+              "type": "file",
+              "value": null
+            }
+          ]
+        },
+        "url": "{{apiURL}}/api/signature/{{payment_id}}",
+        "description": "## Upload Signature\nThe client makes this request to upload the consumers signature to validate the transaction. The signature image should be uploaded as a `multipart` POST request. This request can happen asynchronously or in the background while other processes take place.\n\n### Endpoint\n```\nPOST /api/signature/<payment_id>\n\nContent-Type : multipart/form-data; boundary=Boundary-2556CCE9-04DA-4A17-9B04-242C7ED90EE2\n```\n### Request\nThis is an example of the request body of an svg signature. PNG and JPG files types are also supported.\n```\n--Boundary-2556CCE9-04DA-4A17-9B04-242C7ED90EE2 \nContent-Disposition: form-data; name=\"file1\"; filename=\"file1.svg\" \nContent-Type: image/svg+xml \n<svg viewBox=\"0 0 100 100\" width=\"100\" height=\"100\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M10 10 H 90 V 90 H 10 L 10 10\"/></svg> \n--Boundary-2556CCE9-04DA-4A17-9B04-242C7ED90EE2--\n```\n### Response\nAn HTTP status code of `200` indicates a successful signature upload. All other HTTP status codes should be considered an error."
+      },
+      "response": [
+        {
+          "id": "2fe0bbf0-7b0e-20bd-af18-5d8b8766db62",
+          "name": "Signature",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml",
+                "disabled": true
+              },
+              {
+                "key": "Accept",
+                "value": "vnd.com.payclip.v1"
+              },
+              {
+                "key": "Cache-Control",
+                "value": "no-cache"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "description": "signautre",
+                  "key": "image",
+                  "type": "file",
+                  "src": {
+                    "0": {}
+                  }
+                }
+              ]
+            },
+            "url": "{{apiURL}}/api/signature/{{payment_id}}"
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "plain",
+          "header": [
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "name": "Connection",
+              "description": ""
+            },
+            {
+              "key": "Content-Length",
+              "value": "97",
+              "name": "Content-Length",
+              "description": ""
+            },
+            {
+              "key": "Content-Security-Policy",
+              "value": "default-src 'self'",
+              "name": "Content-Security-Policy",
+              "description": ""
+            },
+            {
+              "key": "Content-Type",
+              "value": "text/plain; charset=UTF-8",
+              "name": "Content-Type",
+              "description": ""
+            },
+            {
+              "key": "Date",
+              "value": "Mon, 12 Feb 2018 19:01:35 GMT",
+              "name": "Date",
+              "description": ""
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "origin-when-cross-origin, strict-origin-when-cross-origin",
+              "name": "Referrer-Policy",
+              "description": ""
+            },
+            {
+              "key": "Request-Time",
+              "value": "1408",
+              "name": "Request-Time",
+              "description": ""
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff",
+              "name": "X-Content-Type-Options",
+              "description": ""
+            },
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY",
+              "name": "X-Frame-Options",
+              "description": ""
+            },
+            {
+              "key": "X-Permitted-Cross-Domain-Policies",
+              "value": "master-only",
+              "name": "X-Permitted-Cross-Domain-Policies",
+              "description": ""
+            },
+            {
+              "key": "X-XSS-Protection",
+              "value": "1; mode=block",
+              "name": "X-XSS-Protection",
+              "description": ""
+            }
+          ],
+          "cookie": [],
+          "responseTime": "1589",
+          "body": "{\"payment_id\":\"87db6cba-9924-4865-8342-4874d8bdc6f7\",\"status\":1,\"status_message\":null,\"url\":null}"
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "id": "b01b42ab-17b4-440d-ad7b-08b222df39ca",
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "id": "7a9a729b-157c-4122-ba74-3e7b506bd0d8",
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ]
+}

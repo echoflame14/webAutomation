@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite thread-count="1" parallel="tests" name="Failed suite [Parallel Tests]" guice-stage="DEVELOPMENT">
+  <parameter name="browser" value="chrome"/>
+  <parameter name="version" value="49.0"/>
+  <parameter name="platform" value="MAC"/>
+  <parameter name="url" value="https://dev-logistics.payclip.com/#/login"/>
+  <test thread-count="1" parallel="tests" name="Smoke Test(failed)">
+    <classes>
+      <class name="com.clip.tests.logistics.SmokeTest">
+        <methods>
+          <include name="testCHMaster"/>
+          <include name="testCHSupervisor"/>
+          <include name="SmokeTest"/>
+          <include name="testCHRegular"/>
+          <include name="createNewOrder"/>
+          <include name="labelTesting"/>
+          <include name="testCHSales"/>
+          <include name="setUp"/>
+          <include name="payByCard"/>
+          <include name="closeBrowser"/>
+          <include name="login"/>
+        </methods>
+      </class> <!-- com.clip.tests.logistics.SmokeTest -->
+    </classes>
+  </test> <!-- Smoke Test(failed) -->
+</suite> <!-- Failed suite [Parallel Tests] -->

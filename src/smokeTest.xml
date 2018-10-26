@@ -1,0 +1,23 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Parallel Tests" verbose="1" thread-count="1" parallel="tests">
+    <parameter name="platform" value="MAC" />
+    <parameter name="browser" value="chrome" />
+    <parameter name="version" value="49.0" />
+    <parameter name="url" value="https://dev-logistics.payclip.com/#/login"/>
+    <test name="Smoke Test">
+        <classes>
+            <class name="com.clip.tests.logistics.SmokeTest" />
+            <!--<class name="com.clip.tests.logistics.LoginLogistics" />-->
+        </classes>
+    </test>
+    <!--<test name="PayByCardOrder">-->
+        <!--<classes>-->
+            <!--<class name="com.clip.tests.logistics.PayByCardOrder" />-->
+        <!--</classes>-->
+    <!--</test>-->
+    <!--<test name="CreateShippingInfo">-->
+        <!--<classes>-->
+            <!--<class name="com.clip.tests.logistics.CreateShippingInfo" />-->
+        <!--</classes>-->
+    <!--</test>-->
+</suite>
